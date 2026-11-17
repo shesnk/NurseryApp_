@@ -12,6 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="NurseryApp">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="offline.css">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #14532D; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
   /* safe-area iPhone: bagian atas (status bar / poni) diberi warna tema, aplikasi mulai di bawahnya */
@@ -23,7 +24,8 @@
   .lapis p { margin: 0; color: #4b6b55; font-size: 14px; max-width: 320px; line-height: 1.45; }
   .putar { width: 26px; height: 26px; border: 3px solid #cfe3c6; border-top-color: #2f7d4f; border-radius: 50%; animation: p .8s linear infinite; }
   @keyframes p { to { transform: rotate(360deg); } }
-  .tombol { border: 0; border-radius: 12px; padding: 12px 20px; background: #2f7d4f; color: #fff; font-weight: 700; font-size: 15px; min-height: 46px; cursor: pointer; }
+  .tombol { border: 0; border-radius: 12px; padding: 12px 20px; background: #2f7d4f; color: #fff; font-weight: 700; font-size: 15px; min-height: 46px; cursor: pointer; margin: 4px; }
+  .tombol.dua { background: #fff; color: #14532D; border: 1.5px solid #cfe3c6; }
   #lambat { display: none; }
 </style>
 </head>
@@ -34,53 +36,61 @@
   <img src="icon-192.png" alt="">
   <h1>Membuka Nursery App...</h1>
   <div class="putar" aria-hidden="true"></div>
-  <p id="lambat">Masih memuat. Bila terlalu lama, periksa sinyal atau ketuk Muat ulang.<br><br><button class="tombol" onclick="muat(true)">Muat ulang</button></p>
-</div>
-
-<div id="offline" class="lapis" hidden>
-  <img src="icon-192.png" alt="">
-  <h1>Tidak ada koneksi</h1>
-  <p>Nursery App memerlukan internet untuk mengambil data terbaru. Aplikasi akan terbuka otomatis saat koneksi kembali.</p>
-  <button class="tombol" onclick="muat(true)">Coba lagi</button>
+  <p id="lambat">Masih memuat. Bila sinyal lemah, catat dulu tanpa sinyal; data dikirim otomatis nanti.<br><br><button class="tombol" onclick="bukaOffline()">Catat tanpa sinyal</button><button class="tombol dua" onclick="muat(true)">Muat ulang</button></p>
 </div>
 
 <div id="salah" class="lapis" hidden>
   <img src="icon-192.png" alt="">
   <h1>Alamat aplikasi belum diatur</h1>
-  <p>Buka file <b>index.html</b> di repository ini, cari baris <b>APP_URL</b>, lalu ganti dengan URL Web App Apps Script Anda yang berakhiran <b>/exec</b>.</p>
+  <p>Buka file <b>alamat.js</b> di repository ini, lalu ganti isi <b>NURSERY_APP_URL</b> dengan URL Web App Apps Script Anda yang berakhiran <b>/exec</b>.</p>
 </div>
 
-<script>
-/* =====================================================================
- *  GANTI DI SINI SAJA: URL Web App Apps Script Anda (berakhiran /exec)
- *  Didapat dari Apps Script: Terapkan > Kelola deployment > salin "URL aplikasi web".
- *  Jangan membuat deployment baru saat memperbarui (pakai Edit > Versi baru) agar URL ini tetap sama.
- * ===================================================================== */
-const APP_URL = 'https://script.google.com/macros/s/AKfycbx-LIc65wCiM4I99LIS3C2bpspdI5hhJgCxvw4hcvwJuBvwF-P3eijIVFnA_gDF04_Z/exec';
+<button id="pilOff" hidden onclick="bukaOffline()">📵 Tanpa sinyal · Catat offline</button>
 
+<script src="alamat.js"></script>
+<script src="offline.js"></script>
+<script>
 (function () {
-  var frame = document.getElementById('app'), memuat = document.getElementById('memuat'), offline = document.getElementById('offline'), lambat = document.getElementById('lambat');
-  var tunda = null, siap = false, penanya = null;   /* penanya = jendela aplikasi (iframe googleusercontent di dalam halaman Google) */
+  var APP_URL = String(window.NURSERY_APP_URL || 'GANTI_DENGAN_ID_DEPLOYMENT');
+  var frame = document.getElementById('app'), memuat = document.getElementById('memuat'), lambat = document.getElementById('lambat'), pil = document.getElementById('pilOff');
+  var tunda = null, siap = false, hidup = false, penanya = null, asalApp = '';   /* penanya = jendela aplikasi (iframe googleusercontent di dalam halaman Google) */
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var OFF = window.OFFLINE || null;
   function standalone() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
-  function info() { return { type: 'es-info', installable: !!tunda, standalone: standalone(), ios: ios, alamat: location.origin + location.pathname }; }
+  function info() { return { type: 'es-info', installable: !!tunda, standalone: standalone(), ios: ios, alamat: location.origin + location.pathname, offline: !!OFF }; }
   function kirimInfo(ke) { try { (ke || penanya || frame.contentWindow).postMessage(info(), '*'); } catch (e) {} }
   /* Hanya menerima pesan dari aplikasi Apps Script */
   function asalSah(o) { try { var h = new URL(o).hostname; return h === 'script.google.com' || /(^|\.)googleusercontent\.com$/.test(h); } catch (e) { return false; } }
+  /* Pesan ke aplikasi (mode offline): hanya ke jendela & asal aplikasi yang sudah menyapa */
+  function keApp(msg) { if (!penanya || !asalApp) return false; try { penanya.postMessage(msg, asalApp); return true; } catch (e) { return false; } }
+
+  window.bukaOffline = function () { if (OFF) OFF.buka(); };
+  function bukaApp() {
+    if (!navigator.onLine) return;
+    if (!hidup) window.muat(true);
+    if (OFF) OFF.tutup();
+  }
 
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); tunda = e; kirimInfo(); });
   window.addEventListener('appinstalled', function () { tunda = null; kirimInfo(); });
   window.addEventListener('message', function (e) {
     if (!asalSah(e.origin)) return;
-    var t = e.data && e.data.type;
+    var d = e.data || {}, t = d.type;
     if (e.source) penanya = e.source;
-    if (t === 'es-tanya') kirimInfo(e.source);
+    if (t === 'es-tanya') { hidup = true; kirimInfo(e.source); }
     else if (t === 'es-install') {
       if (!tunda) return kirimInfo(e.source);
       var p = tunda; tunda = null; p.prompt();
       Promise.resolve(p.userChoice).then(function () { kirimInfo(e.source); }, function () { kirimInfo(e.source); });
     }
-    else if (t === 'es-reload') muat(true);
+    else if (t === 'es-reload') window.muat(true);
+    else if (!OFF) return;
+    /* ---- mode offline ---- */
+    else if (t === 'es-opsi') OFF.opsi(d.opsi);
+    else if (t === 'es-siap') { hidup = true; asalApp = e.origin; OFF.siap(d.akun); }
+    else if (t === 'es-hasil') OFF.hasil(d);
+    else if (t === 'es-keluar') OFF.keluar(!!d.hapus);
+    else if (t === 'es-buka-offline') OFF.buka();
   });
 
   /* Parameter QR (?menu=..&k=.. atau ?bibit=..) diteruskan ke aplikasi. Hanya nama & pola yang dikenal; sisanya dibuang.
@@ -92,23 +102,32 @@ const APP_URL = 'https://script.google.com/macros/s/AKfycbx-LIc65wCiM4I99LIS3C2b
     return out;
   }
   window.muat = function (paksa) {
-    if (APP_URL.indexOf('GANTI_DENGAN') > -1) { memuat.hidden = true; document.getElementById('salah').hidden = false; return; }
-    if (!navigator.onLine) { memuat.hidden = true; offline.hidden = false; return; }
-    offline.hidden = true; memuat.hidden = false; lambat.style.display = 'none'; siap = false;
+    if (APP_URL.indexOf('GANTI_DENGAN') > -1 || !/^https:\/\//.test(APP_URL)) { memuat.hidden = true; document.getElementById('salah').hidden = false; return; }
+    if (!navigator.onLine) { memuat.hidden = true; if (OFF) OFF.buka(); return; }
+    memuat.hidden = false; lambat.style.display = 'none'; siap = false; hidup = false;
     var p = paramQR(); if (paksa) p.push('r=' + Date.now());   /* r= mencegah browser memakai halaman lama dari cache */
     frame.src = APP_URL + (p.length ? (APP_URL.indexOf('?') > -1 ? '&' : '?') + p.join('&') : '');
     setTimeout(function () { if (!siap) lambat.style.display = 'block'; }, 20000);
   };
   frame.addEventListener('load', function () { if (!frame.src) return; siap = true; memuat.hidden = true; });
-  window.addEventListener('offline', function () { if (!siap) { memuat.hidden = true; offline.hidden = false; } });
-  window.addEventListener('online', function () { if (!offline.hidden) window.muat(true); });
+  window.addEventListener('offline', function () {
+    if (!hidup) { memuat.hidden = true; if (OFF) OFF.buka(); }
+    else if (OFF) pil.hidden = false;   /* aplikasi tetap tampil; pil kecil untuk beralih ke catat offline */
+    if (OFF) OFF.jaringan();
+  });
+  window.addEventListener('online', function () {
+    pil.hidden = true;
+    if (OFF) OFF.jaringan();
+    if (!hidup) window.muat(true);   /* panel offline (bila terbuka) tetap di atas; aplikasi dimuat di belakang lalu data dikirim */
+  });
 
   if ('serviceWorker' in navigator) {
     var adaPengendali = !!navigator.serviceWorker.controller, muatUlang = false;
     navigator.serviceWorker.register('sw.js').catch(function () {});
-    /* VERSI di sw.js naik -> service worker baru aktif -> halaman dimuat ulang sekali */
-    navigator.serviceWorker.addEventListener('controllerchange', function () { if (!adaPengendali || muatUlang) { adaPengendali = true; return; } muatUlang = true; location.reload(); });
+    /* VERSI di sw.js naik -> service worker baru aktif -> halaman dimuat ulang sekali (kecuali sedang mengisi formulir offline) */
+    navigator.serviceWorker.addEventListener('controllerchange', function () { if (!adaPengendali || muatUlang) { adaPengendali = true; return; } if (OFF && OFF.diForm()) return; muatUlang = true; location.reload(); });
   }
+  if (OFF) OFF.init({ kirim: keApp, bukaApp: bukaApp });
   window.muat(false);
 })();
 </script>
