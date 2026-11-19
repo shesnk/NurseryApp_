@@ -504,16 +504,16 @@
     }, function (e) { if (btn) btn.disabled = false; var el = document.getElementById('offErr'); if (el) el.textContent = 'Gagal menyimpan di HP: ' + ((e && e.message) || e) + '. Memori HP mungkin penuh; hapus beberapa foto lalu coba lagi.'; });
   }
 
-  /* ---------------- foto: dikompres seperti di aplikasi (maks. 1600 px, JPEG) ---------------- */
+  /* ---------------- foto: dikompres seperti di aplikasi (maks. 1280 px, JPEG) ---------------- */
   function kompres(file) {
     return new Promise(function (res, rej) {
       if (!/^image\//.test(file.type || 'image/')) return rej(new Error('File "' + file.name + '" bukan gambar.'));
       var url = URL.createObjectURL(file), img = new Image();
       img.onload = function () {
         try {
-          var sc = Math.min(1, 1600 / Math.max(img.width, img.height)), w = Math.round(img.width * sc), h = Math.round(img.height * sc), c = document.createElement('canvas');
+          var sc = Math.min(1, 1280 / Math.max(img.width, img.height)), w = Math.round(img.width * sc), h = Math.round(img.height * sc), c = document.createElement('canvas');
           c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h); URL.revokeObjectURL(url);
-          var d = c.toDataURL('image/jpeg', 0.8); res({ name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg', data: d.slice(d.indexOf(',') + 1) });
+          var d = c.toDataURL('image/jpeg', 0.78); res({ name: String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg', data: d.slice(d.indexOf(',') + 1) });
         } catch (e) { rej(e); }
       };
       img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('Gambar "' + file.name + '" tidak bisa dibaca.')); };

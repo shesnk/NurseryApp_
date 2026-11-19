@@ -2,7 +2,7 @@
  * Menyimpan cangkang pembungkus + formulir "Catat tanpa sinyal" (file di repository ini) agar bisa dibuka tanpa sinyal.
  * Aplikasi Apps Script (script.google.com / googleusercontent.com) TIDAK PERNAH disentuh/di-cache, sehingga selalu versi terbaru.
  * Bila file pembungkus diubah, naikkan VERSI agar perangkat memperbarui diri. */
-const VERSI = 'nurseryapp-pwa-v3';
+const VERSI = 'nurseryapp-pwa-v4';
 const CANGKANG = ['./', './index.html', './offline.js', './offline.css', './alamat.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './favicon-32.png'];
 
 self.addEventListener('install', e => {
